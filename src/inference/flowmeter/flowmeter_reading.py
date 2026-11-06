@@ -18,25 +18,57 @@ def angle_calibration(pivot, anchors):
     return angles, anchors[:, 0], float(np.median(radii))
 
 
-def interpolate_needle(points, pivot, angles, values, scale_radius):
-    vectors = points - pivot
-    radii = np.linalg.norm(vectors, axis=1)
-    # Exclude the hub and background far beyond the printed scale.
-    shaft = (radii >= 0.35 * scale_radius) & (radii <= 1.2 * scale_radius)
-    if shaft.sum() < 20:
+def interpolate_needle(points, pivot, anchors, scale_radius, *, measured_zero_fraction=0.0):
+    import cv2
+
+    radii = np.linalg.norm(points - pivot, axis=1)
+    shaft = points[(radii >= 0.35 * scale_radius) & (radii <= 1.2 * scale_radius)]
+    if len(shaft) < 20:
         return None, 'needle_shaft_not_found'
-    rays = np.arctan2(vectors[shaft, 1], vectors[shaft, 0])
-    center = (angles[0] + angles[-1]) / 2
-    rays = (rays - center + np.pi) % (2 * np.pi) - np.pi + center
-    direction = float(np.median(rays))
-    inliers = np.abs(rays - direction) <= np.deg2rad(3)
-    if inliers.mean() < 0.75 or np.ptp(radii[shaft][inliers]) < 0.15 * scale_radius:
+
+    line = cv2.fitLine(shaft.astype(np.float32), cv2.DIST_HUBER, 0, 0.01, 0.01).ravel().astype(np.float64)
+    direction, origin = line[:2], line[2:]
+    normal = np.array([-direction[1], direction[0]])
+    width = max(2.0, 0.035 * scale_radius)
+    inliers = np.abs((shaft - origin) @ normal) <= width
+    if (inliers.mean() < 0.75 or np.ptp((shaft[inliers] - origin) @ direction) < 0.15 * scale_radius
+            or abs((pivot - origin) @ normal) > 2 * width):
         return None, 'needle_direction_unreliable'
-    direction = float(np.median(rays[inliers]))
-    tolerance = np.deg2rad(0.75)
-    if not angles[0] - tolerance <= direction <= angles[-1] + tolerance:
-        return None, 'outside_calibrated_range'
-    return round(float(np.interp(direction, angles, values)), 1), 'ok'
+
+    # Start the ray at the closest point on the fitted line to the hub.
+    origin += ((pivot - origin) @ direction) * direction
+    if np.median((shaft[inliers] - origin) @ direction) < 0:
+        direction = -direction
+
+    # A scale segment crosses the ray where its signed distance to the line is zero.
+    offsets = anchors[:, 1:] - origin
+    sides = offsets @ normal
+    along = offsets @ direction
+    spans = sides[:-1] - sides[1:]
+    fractions = np.divide(sides[:-1], spans, out=np.full_like(spans, np.nan), where=np.abs(spans) > 1e-8)
+    distances = along[:-1] + fractions * np.diff(along)
+    intersections = np.flatnonzero((fractions >= 0) & (fractions <= 1) & (distances > 0))
+    values = anchors[:, 0]
+    if len(intersections):
+        index = intersections[np.argmin(distances[intersections])]
+        fraction = fractions[index]
+        if index == 0:
+            fraction = max(0.0, (fraction - measured_zero_fraction) / (1.0 - measured_zero_fraction))
+        value = values[index] + fraction * (values[index + 1] - values[index])
+        return round(float(value), 1), 'ok'
+
+    # Preserve the small endpoint allowance for masks near the ends of the scale.
+    ends = np.array([0, len(anchors) - 1])
+    near = ends[(along[ends] > 0) & (np.abs(sides[ends]) <= along[ends] * np.tan(np.deg2rad(0.75)))]
+    if len(near):
+        end = near[np.argmin(np.abs(sides[near]))]
+        return float(values[end]), 'ok'
+
+    # A ray just before the zero end points to the opposite side from the scale's sweep.
+    sweep_at_zero = along[0] * sides[1] - sides[0] * along[1]
+    if values[0] == 0 and along[0] > 0 and sides[0] * sweep_at_zero > 0:
+        return 0.0, 'ok'
+    return None, 'outside_calibrated_range'
 
 
 class DialCalibration:
@@ -60,7 +92,13 @@ class DialCalibration:
         points = np.vstack((self.pivot, anchors[:, 1:]))
         if not np.isfinite(anchors).all() or not np.isfinite(points).all() or np.any(points < 0) or np.any(points >= self.size):
             raise ValueError('Calibration coordinates must lie inside the reference crop')
-        self.angles, self.values, self.radius = angle_calibration(self.pivot, anchors)
+        _, _, self.radius = angle_calibration(self.pivot, anchors)
+        self.anchors = anchors
+        self.measured_zero_fraction = config.get('measured_zero_fraction', 0.0)
+        if (type(self.measured_zero_fraction) not in (int, float)
+                or not 0 <= self.measured_zero_fraction < 1
+                or (self.measured_zero_fraction > 0 and anchors[0, 0] != 0)):
+            raise ValueError('measured_zero_fraction must be in [0, 1) on a scale starting at zero')
 
         self.sift = cv2.SIFT_create(nfeatures=1200, contrastThreshold=0.02)
         self.keypoints, self.descriptors = self.sift.detectAndCompute(cv2.cvtColor(reference, cv2.COLOR_BGR2GRAY), None)
@@ -131,7 +169,8 @@ class DialCalibration:
         y, x = np.nonzero(needle)
         points = np.column_stack((x, y)).astype(np.float32).reshape(-1, 1, 2)
         aligned = cv2.perspectiveTransform(points, matrix).reshape(-1, 2)
-        value, status = interpolate_needle(aligned, self.pivot, self.angles, self.values, self.radius)
+        value, status = interpolate_needle(aligned, self.pivot, self.anchors, self.radius,
+                                          measured_zero_fraction=self.measured_zero_fraction)
         return {**result, 'reading': value, 'reading_status': status}
 
 
