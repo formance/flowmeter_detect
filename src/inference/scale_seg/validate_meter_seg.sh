@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_dir="${PROJECT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
+project_dir="${PROJECT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 image="${IMAGE:-flowmeter_infer:v1.1}"
 python="${PYTHON:-python}"
 dataset="${DATASET:-${project_dir}/data/scene01_seg}"
@@ -29,7 +29,7 @@ if [[ "${1:-}" == --install-runtime ]]; then
 fi
 
 [[ -d "$dataset" ]] || { printf 'Crop directory not found: %s\n' "$dataset" >&2; exit 1; }
-for file in "$onnx" "${project_dir}/src/infer_stage2_onnx.py" "${project_dir}/src/infer_stage1.py" "${project_dir}/src/image_input.py"; do
+for file in "$onnx" "${project_dir}/src/inference/scale_seg/infer_stage2_onnx.py"; do
   [[ -f "$file" ]] || { printf 'Required file not found: %s\n' "$file" >&2; exit 1; }
 done
 if [[ -d "$runtime_dir" ]]; then
@@ -46,4 +46,4 @@ exec "${docker_cmd[@]}" run "${container_options[@]}" --network=none \
   --mount "type=bind,src=$(realpath -- "$dataset"),dst=/crops,readonly" \
   --mount "type=bind,src=$(realpath -- "$onnx"),dst=/app/weights/meter_seg_model.onnx,readonly" \
   --mount "type=bind,src=$(realpath -- "$output_root"),dst=/app/outputs" \
-  "$image" /app/src/infer_stage2_onnx.py --source-dir /crops "$@"
+  --workdir /app "$image" -m src.inference.scale_seg.infer_stage2_onnx --source-dir /crops "$@"

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_dir="${PROJECT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
-image="${IMAGE:-flowmeter_train:v1.0}"
+project_dir="${PROJECT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+image="${IMAGE:-flowmeter_train:v1.1}"
 weights="${WEIGHTS:-${project_dir}/weights/needle_seg_best.pt}"
 dataset="${DATASET:-${project_dir}/data/scene01_seg_min190}"
 split_images="${SPLIT_IMAGES:-${project_dir}/data/scene01_yolo/images}"
@@ -22,7 +22,7 @@ mkdir -p -- "$output_root"
 printf 'Overlay output root on host: %s\n' "$(realpath -- "$output_root")"
 
 exec "${docker_cmd[@]}" run --rm --pull=never --network=none \
-  --user "$(id -u):$(id -g)" --env HOME=/tmp \
+  --user "$(id -u):$(id -g)" --env HOME=/tmp --env PYTHONPATH=/app \
   --env NVIDIA_VISIBLE_DEVICES=void --env CUDA_VISIBLE_DEVICES=-1 \
   --mount "type=bind,src=$(realpath -- "$project_dir/src"),dst=/app/src,readonly" \
   --mount "type=bind,src=$(realpath -- "$dataset"),dst=/app/data/scene01_seg_min190,readonly" \
@@ -30,4 +30,4 @@ exec "${docker_cmd[@]}" run --rm --pull=never --network=none \
   --mount "type=bind,src=$(realpath -- "$weights"),dst=/weights/needle_seg_best.pt,readonly" \
   --mount "type=bind,src=$(realpath -- "$output_root"),dst=/outputs" \
   --workdir /outputs --entrypoint python3.12 "$image" \
-  /app/src/infer_needle_seg.py --weights /weights/needle_seg_best.pt --output-root /outputs "$@"
+  -m src.inference.needle_seg.infer_needle_seg --weights /weights/needle_seg_best.pt --output-root /outputs "$@"

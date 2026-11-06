@@ -1,7 +1,9 @@
-"""Base64 transport decoding, independent of YOLO/OpenCV."""
+"""Load local and Base64 images without importing the model runtimes."""
 import base64
 import binascii
 import re
+import sys
+from pathlib import Path
 
 
 def decode_base64_image(value: str) -> bytes:
@@ -21,3 +23,23 @@ def decode_base64_image(value: str) -> bytes:
     if not raw:
         raise ValueError('Empty decoded image')
     return raw
+
+
+def load_image(args):
+    import cv2
+    import numpy as np
+
+    if args.source is not None:
+        raw = args.source.read_bytes()
+    else:
+        encoded = args.source_base64
+        if args.base64_file is not None:
+            encoded = (sys.stdin.read() if args.base64_file == '-'
+                       else Path(args.base64_file).read_text(encoding='utf-8-sig'))
+        raw = decode_base64_image(encoded)
+    if not raw:
+        raise ValueError('Empty image')
+    image = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError('Cannot decode source image')
+    return image

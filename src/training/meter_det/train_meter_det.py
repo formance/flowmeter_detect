@@ -5,8 +5,7 @@ from datetime import datetime, timedelta, timezone
 from itertools import count
 from pathlib import Path
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+from src.common.paths import PROJECT_ROOT
 
 
 def reserve_run_dir(output_root):

@@ -5,8 +5,9 @@ import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from src.common.paths import PROJECT_ROOT
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 OPSET = 17
 
 
@@ -30,7 +31,7 @@ def export_detector(weights, staging, image_size):
 
 def export_needle(weights, staging):
     import torch
-    from needle_seg_model import NeedleDeepLabV3Plus
+    from src.common.needle.needle_seg_model import NeedleDeepLabV3Plus
 
     checkpoint = torch.load(weights, map_location='cpu', weights_only=True)
     if not isinstance(checkpoint, dict) or checkpoint.get('architecture') != 'deeplabv3plus_resnet18':
@@ -69,8 +70,8 @@ def main():
 
     try:
         import onnx
-    except ImportError:
-        parser.error('Install onnx==1.17.0 or run scripts/export_models_onnx.sh --install-onnx')
+    except ImportError as exc:
+        parser.error(f'ONNX export requires onnx==1.17.0 in the training environment: {exc}')
     os.environ.setdefault('YOLO_AUTOINSTALL', 'false')
     output.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix='.onnx-export-', dir=output) as temporary:

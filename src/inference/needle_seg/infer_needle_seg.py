@@ -5,9 +5,11 @@ from pathlib import Path
 
 import numpy as np
 
-from infer_stage1 import load_image
-from infer_stage2_onnx import blend_labels, save_png
-from train_needle_seg import PROJECT_ROOT, RGB_MEAN, RGB_STD, load_splits
+from src.common.image_input import load_image
+from src.common.paths import PROJECT_ROOT
+from src.common.visualization import blend_labels, save_png
+from src.common.needle.dataset import load_splits
+from src.common.needle.normalization import RGB_MEAN, RGB_STD
 
 
 def predict_mask(model, crop, size):
@@ -43,7 +45,7 @@ def main():
 
     import cv2
     import torch
-    from needle_seg_model import NeedleDeepLabV3Plus
+    from src.common.needle.needle_seg_model import NeedleDeepLabV3Plus
 
     cv2.setNumThreads(1)
     torch.set_num_threads(args.threads)

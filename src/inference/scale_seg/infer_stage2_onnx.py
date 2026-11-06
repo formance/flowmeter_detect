@@ -5,86 +5,14 @@ import math
 import os
 from datetime import datetime
 from pathlib import Path
-from time import perf_counter
 
 import numpy as np
 
-from infer_stage1 import DEFAULT_CONFIG, load_config, load_image, predict_dials
-
-
-PROJECT = Path(__file__).resolve().parents[1]
-INPUT_SHAPE = (1, 3, 512, 512)
-CLASSES = {'pointer': 1, 'scale': 2}
-PALETTE = np.array([[0, 0, 0], [255, 255, 0], [0, 255, 0]], dtype=np.uint8)  # BGR
-OPACITY = np.array([0.0, 0.80, 0.45], dtype=np.float32)
-
-
-def save_png(path, image):
-    import cv2
-
-    ok, encoded = cv2.imencode('.png', image)
-    if not ok:
-        raise OSError(f'Could not encode PNG: {path}')
-    path.write_bytes(encoded.tobytes())
-
-
-def prepare_input(crop, color_order):
-    import cv2
-
-    resized = cv2.resize(crop, (512, 512), interpolation=cv2.INTER_LINEAR)
-    if color_order == 'rgb':
-        resized = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-    normalized = (resized.astype(np.float32) / 255.0 - 0.5) / 0.5
-    return np.ascontiguousarray(normalized.transpose(2, 0, 1)[None])
-
-
-def decode_labels(outputs):
-    # Prefer the exported class map when present. Otherwise decode scores.
-    for output in outputs:
-        if not np.issubdtype(output.dtype, np.integer):
-            continue
-        labels = output
-        if labels.ndim == 4 and labels.shape[:2] == (1, 1):
-            labels = labels[0, 0]
-        elif labels.ndim == 4 and labels.shape[0] == labels.shape[-1] == 1:
-            labels = labels[0, :, :, 0]
-        elif labels.ndim == 3 and labels.shape[0] == 1:
-            labels = labels[0]
-        if labels.ndim == 2 and labels.size and labels.min() >= 0 and labels.max() <= 2:
-            return labels.astype(np.uint8)
-    for output in outputs:
-        if output.ndim != 4 or output.shape[0] != 1 or not np.issubdtype(output.dtype, np.floating):
-            continue
-        if output.shape[1] == 3:
-            return output[0].argmax(axis=0).astype(np.uint8)
-        if output.shape[-1] == 3:
-            return output[0].argmax(axis=-1).astype(np.uint8)
-    shapes = ', '.join(f'{output.shape} {output.dtype}' for output in outputs)
-    raise ValueError(f'Cannot decode a three-class segmentation output: {shapes}')
-
-
-def segment_crop(session, input_name, crop, color_order, *, warmup=False):
-    import cv2
-
-    inputs = {input_name: prepare_input(crop, color_order)}
-    if warmup:
-        session.run(None, inputs)
-    started = perf_counter()
-    outputs = session.run(None, inputs)
-    elapsed_ms = (perf_counter() - started) * 1000
-    labels = decode_labels(outputs)
-    height, width = crop.shape[:2]
-    return cv2.resize(labels, (width, height), interpolation=cv2.INTER_NEAREST), elapsed_ms
-
-
-def blend_labels(image, labels):
-    foreground = labels != 0
-    classes = labels[foreground]
-    opacity = OPACITY[classes, None]
-    colors = PALETTE[classes]
-    image[foreground] = np.rint(image[foreground] * (1 - opacity) + colors * opacity).astype(np.uint8)
-
-
+from src.common.image_input import load_image
+from src.common.paths import PROJECT_ROOT
+from src.common.visualization import blend_labels, save_png
+from src.inference.meter_det.detection import DEFAULT_CONFIG, load_config, predict_dials
+from src.inference.scale_seg.model import CLASSES, INPUT_SHAPE, segment_crop
 def validate_crops(source_dir, output, session, input_name, color_order):
     import cv2
 
@@ -165,15 +93,15 @@ def main():
     sources.add_argument('--source-base64', help='Base64 image or image data URI')
     sources.add_argument('--base64-file', help='Base64 text file or - for stdin')
     parser.add_argument('--crop', action='store_true', help='Input is already cropped to one meter')
-    parser.add_argument('--onnx', type=Path, default=PROJECT / 'weights/meter_seg_model.onnx')
-    parser.add_argument('--dial-weights', type=Path, default=PROJECT / 'weights/gauge_detection_model.pt')
+    parser.add_argument('--onnx', type=Path, default=PROJECT_ROOT / 'weights/meter_seg_model.onnx')
+    parser.add_argument('--dial-weights', type=Path, default=PROJECT_ROOT / 'weights/gauge_detection_model.pt')
     parser.add_argument('--dial-config', type=Path, default=DEFAULT_CONFIG)
     parser.add_argument('--color-order', choices=('bgr', 'rgb'), default='bgr')
     parser.add_argument('--threads', type=int, default=4)
     parser.add_argument('--output', type=Path, help='New directory for output images')
     args = parser.parse_args()
     if all(value is None for value in (args.source, args.source_dir, args.source_base64, args.base64_file)):
-        args.source = PROJECT / 'data/test.jpg'
+        args.source = PROJECT_ROOT / 'data/test.jpg'
     if not args.onnx.is_file():
         parser.error(f'ONNX model not found: {args.onnx}')
     if args.source_dir is not None and not args.source_dir.is_dir():
@@ -189,7 +117,7 @@ def main():
     except ImportError:
         parser.error('Install onnxruntime in the Python environment running this script')
 
-    output = args.output or PROJECT / 'outputs' / datetime.now().strftime('stage2_onnx_%Y%m%d_%H%M%S_%f')
+    output = args.output or PROJECT_ROOT / 'outputs' / datetime.now().strftime('stage2_onnx_%Y%m%d_%H%M%S_%f')
     os.environ.setdefault('YOLO_AUTOINSTALL', 'false')
     try:
         options = ort.SessionOptions()

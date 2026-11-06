@@ -1,0 +1,12 @@
+**
+!Dockerfile
+!.dockerignore
+!install-missing.sh
+!requirements.txt
+!offline-wheels.json
+!check_offline_wheels.py
+!wheels/
+!wheels/*.whl
+!wheels_python/
+!wheels_python/Python-3.12.12.tar.xz
+!wheels_python/Python-3.12.12.tar.xz.sha256
