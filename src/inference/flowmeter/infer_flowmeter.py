@@ -5,6 +5,7 @@ import math
 import sys
 from datetime import datetime
 from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 
@@ -191,18 +192,22 @@ def main():
         try:
             image = decode_image(source)
         except (OSError, ValueError, cv2.error) as exc:
-            results.append({'source': name, 'status': 'input_error', 'error': str(exc)})
+            results.append({'source': name, 'status': 'input_error', 'inference_ms': None, 'error': str(exc)})
             continue
+        started = perf_counter()
         detections = detect_dials(det, det_input, image, config)
+        inference_seconds = perf_counter() - started
         annotated = image.copy()
         folder = output / f'image_{index:04d}'
         folder.mkdir()
         for number, dial in enumerate(detections, start=1):
+            started = perf_counter()
             x1, y1, x2, y2 = dial['bbox']
             crop = image[y1:y2, x1:x2]
             pointer = segment_needle(needle, needle_input, crop)
             ticks = scale_mask(crop)
             dial.update(read_dial(calibrations, crop, pointer, ticks))
+            inference_seconds += perf_counter() - started
             for label, mask in (('pointer', pointer), ('scale', ticks)):
                 path = folder / f'dial_{number:02d}_{label}.png'
                 save_png(path, mask.astype(np.uint8) * 255)
@@ -222,7 +227,7 @@ def main():
         status = 'no_dial'
         if detections:
             status = 'ok' if any(dial['reading'] is not None for dial in detections) else 'reading_unavailable'
-        results.append({'source': name, 'status': status,
+        results.append({'source': name, 'status': status, 'inference_ms': round(inference_seconds * 1000, 3),
                         'overlay': preview.relative_to(output).as_posix(), 'dials': detections})
     report = {'calibration': str(args.calibration), 'models': [str(path) for path in paths], 'images': results}
     (output / 'results.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

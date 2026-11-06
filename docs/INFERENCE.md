@@ -51,8 +51,10 @@ Base64 也支持 `data:image/png;base64,...` 形式。可用 `--source-base64` �
 
 | 文件 | 内容 |
 | --- | --- |
-| `results.json` | 每张图的处理状态，以及各表盘的原图坐标框、置信度、读数 `reading`、单位 `unit`、标定模板和 `reading_status`。 |
+| `results.json` | 每张图的处理状态、推理耗时 `inference_ms`，以及各表盘的原图坐标框、置信度、读数 `reading`、单位 `unit`、标定模板和 `reading_status`。 |
 | `image_*/overlay.png` | 原图叠加表盘框和读数，青色为指针，绿色为刻度。 |
 | `image_*/dial_*_pointer.png` 和 `image_*/dial_*_scale.png` | 对应表盘裁剪区域的二值掩膜。 |
 
 读取 `reading_status` 判断读数是否有效。对齐失败、指针或刻度掩膜缺失、读数超出标定范围等情况会返回 `reading: null`，并记录对应原因。
+
+`inference_ms` 的单位为毫秒，累计该图的表盘检测、所有表盘的指针和刻度分割、校正及读数计算时间。计时从图像解码后开始，模型和标定模板初始化、叠图绘制与文件写入在计时范围之外。未检测到表盘时只记录检测耗时，输入解码失败时返回 `null`。
