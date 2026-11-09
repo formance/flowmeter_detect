@@ -1,6 +1,6 @@
 # 流量计读数推理
 
-在已加载 `flowmeter_infer:v1.1` 的 Linux Docker 宿主机运行。镜像已预装 `onnx` 和 `onnxruntime`，推理使用 `CPUExecutionProvider`。脚本默认使用该镜像，并将项目挂载到容器的 `/app`。下列输入和配置路径均相对于项目根目录。
+在已加载 `flowmeter_infer:v1.1` 的 Linux Docker 宿主机运行。镜像已预装 `onnx` 和 `onnxruntime`，推理使用 `CPUExecutionProvider`。脚本默认使用该镜像，将项目按宿主机的绝对路径挂载并设为工作目录，同时提供 `/app` 挂载路径。下列输入和配置路径均相对于项目根目录。
 
 需要重新构建推理镜像时，在项目根目录运行 `docker build -t flowmeter_infer:v1.1 src/deploy/inference`。
 
@@ -44,6 +44,8 @@ bash src/inference/flowmeter/infer_flowmeter.sh --base64-file data/images.json
 ```
 
 Base64 也支持 `data:image/png;base64,...` 形式。可用 `--source-base64` 直接传入字符串，或用 `--base64-file` 读取一个或多个 Base64 文本文件。
+
+直接运行 Python 入口时，输入文件和图片目录的相对路径会先从当前工作目录查找，找不到时再从项目根目录查找。Docker 启动脚本支持 `--source-dir data/scene02`，也支持项目内图片的宿主机绝对路径。若项目的 `data` 是指向外部目录的软链接，脚本会将它的真实目标按相同绝对路径只读挂载到容器。
 
 检测置信度和 NMS IoU 阈值由 `src/inference/meter_det/stage1.json` 控制，默认均为 `0.5`。该文件还设置 ONNX CPU 线程数，默认 `4`。可用 `--config` 指定其他配置文件。
 

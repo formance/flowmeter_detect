@@ -104,19 +104,31 @@ def segment_needle(session, model_input, crop):
     return cv2.resize(mask, (crop.shape[1], crop.shape[0]), interpolation=cv2.INTER_NEAREST) > 0
 
 
+def resolve_input_path(path):
+    path = Path(path)
+    if path.is_absolute() or path.exists():
+        return path
+    return PROJECT_ROOT / path
+
+
 def sources_from_args(args):
     if args.source_dir is not None:
-        paths = sorted(path for path in args.source_dir.iterdir()
+        source_dir = resolve_input_path(args.source_dir)
+        if not source_dir.is_dir():
+            raise ValueError(f'Image directory not found: {source_dir}. '
+                             f'Project root: {PROJECT_ROOT}. Check the dataset path and container mount.')
+        paths = sorted(path for path in source_dir.iterdir()
                        if path.is_file() and path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.bmp', '.webp'})
         return [(str(path), path) for path in paths]
     if args.source:
-        return [(str(path), path) for path in args.source]
+        return [(str(path), resolve_input_path(path)) for path in args.source]
     if args.source_base64:
         return [(f'base64_{i}', value) for i, value in enumerate(args.source_base64, start=1)]
 
     sources = []
     for filename in args.base64_file:
-        content = sys.stdin.read() if filename == '-' else Path(filename).read_text(encoding='utf-8-sig')
+        content = (sys.stdin.read() if filename == '-'
+                   else resolve_input_path(filename).read_text(encoding='utf-8-sig'))
         values = json.loads(content) if content.lstrip().startswith('[') else [content]
         if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
             raise ValueError('Base64 JSON input must be an array of image strings')
