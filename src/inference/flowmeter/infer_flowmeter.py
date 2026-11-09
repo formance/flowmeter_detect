@@ -10,6 +10,7 @@ from time import perf_counter
 import numpy as np
 
 from src.common.image_input import decode_base64_image
+from src.common.image_preprocessing import enhance_meter_crop
 from src.common.paths import PROJECT_ROOT
 from src.common.visualization import blend_labels, save_png
 from src.inference.flowmeter.flowmeter_reading import load_calibrations, read_dial
@@ -218,7 +219,17 @@ def main():
             crop = image[y1:y2, x1:x2]
             pointer = segment_needle(needle, needle_input, crop)
             ticks = scale_mask(crop)
-            dial.update(read_dial(calibrations, crop, pointer, ticks))
+            reading = read_dial(calibrations, crop, pointer, ticks)
+            preprocessing = 'original'
+            if reading['reading'] is None and pointer.any():
+                enhanced_crop = enhance_meter_crop(crop)
+                enhanced_ticks = scale_mask(enhanced_crop)
+                enhanced_reading = read_dial(calibrations, enhanced_crop, pointer, enhanced_ticks, enhanced=True)
+                if enhanced_reading['reading'] is not None:
+                    reading, ticks = enhanced_reading, enhanced_ticks
+                    preprocessing = 'denoise_clahe'
+            dial.update(reading)
+            dial['scale_preprocessing'] = preprocessing
             inference_seconds += perf_counter() - started
             for label, mask in (('pointer', pointer), ('scale', ticks)):
                 path = folder / f'dial_{number:02d}_{label}.png'

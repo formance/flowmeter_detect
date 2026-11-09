@@ -20,6 +20,8 @@
 
 `058.png` 使用已知零流量时的指针交点校准零点。`measured_zero_fraction` 表示该交点在第一个刻度段上的位置比例，约为从 `RP` 到 `5` 的 18%。落在 `RP` 到实测零点之间的交点读作 0，实测零点到 `5` 之间重新插值。
 
+读数先使用原尺寸图像配准，失败后将配准图像等比例缩放到长边 320 像素重试。仍无法读数时，程序对表盘做灰度降噪和局部对比度增强，重新分割刻度，并与同样增强过的模板配准。坐标变换会换算回原始裁剪图，保存的刻度掩膜与实际采用的读数结果对应。
+
 ## 运行
 
 ```bash
@@ -55,7 +57,7 @@ Base64 也支持 `data:image/png;base64,...` 形式。可用 `--source-base64` �
 
 | 文件 | 内容 |
 | --- | --- |
-| `results.json` | 每张图的处理状态、推理耗时 `inference_ms`，以及各表盘的原图坐标框、置信度、读数 `reading`、单位 `unit`、标定模板和 `reading_status`。 |
+| `results.json` | 每张图的处理状态、推理耗时 `inference_ms`，以及各表盘的原图坐标框、置信度、读数 `reading`、单位 `unit`、标定模板和 `reading_status`。配准方式 `alignment_mode` 为 `native`、`resize_320` 或 `contrast_resize_320`，刻度预处理 `scale_preprocessing` 为 `original` 或 `denoise_clahe`。 |
 | `image_*/overlay.png` | 原图叠加表盘框和读数，青色为指针，绿色为刻度。 |
 | `image_*/dial_*_pointer.png` 和 `image_*/dial_*_scale.png` | 对应表盘裁剪区域的二值掩膜。 |
 

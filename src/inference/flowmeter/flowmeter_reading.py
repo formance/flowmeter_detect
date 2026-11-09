@@ -4,6 +4,8 @@ from pathlib import Path
 
 import numpy as np
 
+from src.common.image_preprocessing import enhance_meter_crop
+
 
 def angle_calibration(pivot, anchors):
     vectors = anchors[:, 1:] - pivot
@@ -104,6 +106,9 @@ class DialCalibration:
         self.keypoints, self.descriptors = self.sift.detectAndCompute(cv2.cvtColor(reference, cv2.COLOR_BGR2GRAY), None)
         if self.descriptors is None or len(self.descriptors) < 8:
             raise ValueError('Calibration reference has too few distinct image features')
+        enhanced_reference = enhance_meter_crop(reference)
+        self.enhanced_keypoints, self.enhanced_descriptors = self.sift.detectAndCompute(
+            cv2.cvtColor(enhanced_reference, cv2.COLOR_BGR2GRAY), None)
         self.matcher = cv2.BFMatcher(cv2.NORM_L2)
         if config.get('scale_mask'):
             mask_path = path.parent / config['scale_mask']
@@ -118,16 +123,23 @@ class DialCalibration:
         self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
         self.scale_band = cv2.dilate(self.scale.astype(np.uint8), self.kernel) > 0
 
-    def align(self, crop):
+    def align(self, crop, *, max_side=None, enhanced=False):
         import cv2
 
         if min(crop.shape[:2]) < 32:
             return None, 0
+        height, width = crop.shape[:2]
+        if max_side is not None:
+            factor = max_side / max(height, width)
+            crop = cv2.resize(crop, (round(width * factor), round(height * factor)), interpolation=cv2.INTER_AREA)
+        scaling = np.diag([crop.shape[1] / width, crop.shape[0] / height, 1.0])
+        target_keypoints = self.enhanced_keypoints if enhanced else self.keypoints
+        target_descriptors = self.enhanced_descriptors if enhanced else self.descriptors
         keypoints, descriptors = self.sift.detectAndCompute(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), None)
-        if descriptors is None:
+        if descriptors is None or target_descriptors is None or len(target_descriptors) < 2:
             return None, 0
         matches = {}
-        for pair in self.matcher.knnMatch(descriptors, self.descriptors, k=2):
+        for pair in self.matcher.knnMatch(descriptors, target_descriptors, k=2):
             if len(pair) == 2 and pair[0].distance < 0.75 * pair[1].distance:
                 match = pair[0]
                 if match.trainIdx not in matches or match.distance < matches[match.trainIdx].distance:
@@ -135,7 +147,7 @@ class DialCalibration:
         if len(matches) < 8:
             return None, 0
         source = np.float32([keypoints[m.queryIdx].pt for m in matches.values()])
-        target = np.float32([self.keypoints[m.trainIdx].pt for m in matches.values()])
+        target = np.float32([target_keypoints[m.trainIdx].pt for m in matches.values()])
         matrix, mask = cv2.findHomography(source, target, cv2.RANSAC, 3.0)
         if matrix is None or mask is None or not np.isfinite(matrix).all():
             return None, 0
@@ -146,16 +158,17 @@ class DialCalibration:
         hull = cv2.convexHull(target[inliers])
         if cv2.contourArea(hull) < 0.03 * self.size[0] * self.size[1]:
             return None, count
-        return matrix, count
+        return matrix @ scaling, count
 
-    def read(self, crop, needle, scale):
+    def read(self, crop, needle, scale, *, max_side=None, enhanced=False):
         import cv2
 
         result = {'reading': None, 'unit': self.unit, 'calibration_template': self.name}
         if not needle.any() or not scale.any():
             return {**result, 'reading_status': 'pointer_missing' if not needle.any() else 'scale_missing'}
-        matrix, matches = self.align(crop)
+        matrix, matches = self.align(crop, max_side=max_side, enhanced=enhanced)
         result['alignment_inliers'] = matches
+        result['alignment_mode'] = ('contrast_' if enhanced else '') + (f'resize_{max_side}' if max_side else 'native')
         if matrix is None:
             return {**result, 'reading_status': 'alignment_failed'}
         aligned_scale = cv2.warpPerspective(scale.astype(np.uint8), matrix, self.size, flags=cv2.INTER_NEAREST)
@@ -180,12 +193,17 @@ def load_calibrations(path, segment_scale):
     return [DialCalibration(path, segment_scale, profile) for profile in profiles]
 
 
-def read_dial(calibrations, crop, needle, scale):
-    candidates = [profile.read(crop, needle, scale) for profile in calibrations]
-
+def read_dial(calibrations, crop, needle, scale, *, enhanced=False):
     def alignment_quality(result):
         agreement = result.get('scale_alignment', 0)
         inliers = result.get('alignment_inliers', 0)
-        return agreement >= 0.3, agreement * inliers, inliers
+        return result['reading_status'] == 'ok', agreement >= 0.3, agreement * inliers, inliers
 
+    candidates = []
+    for max_side in ((320,) if enhanced else (None, 320)):
+        current = [profile.read(crop, needle, scale, max_side=max_side, enhanced=enhanced)
+                   for profile in calibrations]
+        candidates.extend(current)
+        if any(result['reading_status'] == 'ok' for result in current) or not needle.any() or not scale.any():
+            break
     return max(candidates, key=alignment_quality)
