@@ -20,7 +20,7 @@ def angle_calibration(pivot, anchors):
     return angles, anchors[:, 0], float(np.median(radii))
 
 
-def interpolate_needle(points, pivot, anchors, scale_radius, *, measured_zero_fraction=0.0):
+def interpolate_needle(points, pivot, anchors, scale_radius, *, measured_zero_fraction=0.0, round_result=True):
     import cv2
 
     radii = np.linalg.norm(points - pivot, axis=1)
@@ -57,7 +57,7 @@ def interpolate_needle(points, pivot, anchors, scale_radius, *, measured_zero_fr
         if index == 0:
             fraction = max(0.0, (fraction - measured_zero_fraction) / (1.0 - measured_zero_fraction))
         value = values[index] + fraction * (values[index + 1] - values[index])
-        return round(float(value), 1), 'ok'
+        return (round(float(value), 1) if round_result else float(value)), 'ok'
 
     # Preserve the small endpoint allowance for masks near the ends of the scale.
     ends = np.array([0, len(anchors) - 1])
@@ -80,6 +80,9 @@ class DialCalibration:
         if config is None:
             config = json.loads(path.read_text(encoding='utf-8-sig'))
         self.unit = config['unit']
+        self.priority = config.get('priority', 0)
+        if type(self.priority) is not int or self.priority < 0:
+            raise ValueError('Template priority must be a nonnegative integer')
         reference_path = path.parent / config['reference']
         self.name = reference_path.name
         reference = cv2.imdecode(np.frombuffer(reference_path.read_bytes(), np.uint8), cv2.IMREAD_COLOR)
@@ -96,6 +99,17 @@ class DialCalibration:
             raise ValueError('Calibration coordinates must lie inside the reference crop')
         _, _, self.radius = angle_calibration(self.pivot, anchors)
         self.anchors = anchors
+        curve = config.get('reading_calibration', [[anchors[0, 0], anchors[0, 0]],
+                                                   [anchors[-1, 0], anchors[-1, 0]]])
+        self.reading_calibration = np.asarray(curve, dtype=np.float64)
+        if (self.reading_calibration.ndim != 2 or self.reading_calibration.shape[1] != 2
+                or len(self.reading_calibration) < 2 or not np.isfinite(self.reading_calibration).all()
+                or not np.all(np.diff(self.reading_calibration[:, 0]) > 0)
+                or not np.all(np.diff(self.reading_calibration[:, 1]) >= 0)
+                or not np.allclose(self.reading_calibration[[0, -1]],
+                                   [[anchors[0, 0], anchors[0, 0]], [anchors[-1, 0], anchors[-1, 0]]])):
+            raise ValueError('reading_calibration needs increasing raw readings, nondecreasing corrected '
+                             'readings, and unchanged scale endpoints')
         self.measured_zero_fraction = config.get('measured_zero_fraction', 0.0)
         if (type(self.measured_zero_fraction) not in (int, float)
                 or not 0 <= self.measured_zero_fraction < 1
@@ -109,6 +123,18 @@ class DialCalibration:
         enhanced_reference = enhance_meter_crop(reference)
         self.enhanced_keypoints, self.enhanced_descriptors = self.sift.detectAndCompute(
             cv2.cvtColor(enhanced_reference, cv2.COLOR_BGR2GRAY), None)
+        self.all_keypoints, self.all_descriptors = self.keypoints, self.descriptors
+        self.all_enhanced_keypoints = self.enhanced_keypoints
+        self.all_enhanced_descriptors = self.enhanced_descriptors
+        self.has_alignment_mask = bool(config.get('alignment_mask'))
+        if self.has_alignment_mask:
+            mask_path = path.parent / config['alignment_mask']
+            mask = cv2.imdecode(np.frombuffer(mask_path.read_bytes(), np.uint8), cv2.IMREAD_GRAYSCALE)
+            if mask is None or mask.shape != reference.shape[:2] or not np.isin(mask, [0, 255]).all():
+                raise ValueError('alignment_mask must be a binary PNG matching the reference crop')
+            self.keypoints, self.descriptors = self.filter_features(self.keypoints, self.descriptors, mask)
+            self.enhanced_keypoints, self.enhanced_descriptors = self.filter_features(
+                self.enhanced_keypoints, self.enhanced_descriptors, mask)
         self.matcher = cv2.BFMatcher(cv2.NORM_L2)
         if config.get('scale_mask'):
             mask_path = path.parent / config['scale_mask']
@@ -123,11 +149,26 @@ class DialCalibration:
         self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
         self.scale_band = cv2.dilate(self.scale.astype(np.uint8), self.kernel) > 0
 
-    def align(self, crop, *, max_side=None, enhanced=False):
+    @staticmethod
+    def filter_features(keypoints, descriptors, mask):
+        if descriptors is None:
+            return keypoints, descriptors
+        points = np.rint([point.pt for point in keypoints]).astype(np.int32)
+        points = np.clip(points, (0, 0), (mask.shape[1] - 1, mask.shape[0] - 1))
+        keep = mask[points[:, 1], points[:, 0]] > 0
+        return [point for point, selected in zip(keypoints, keep) if selected], descriptors[keep]
+
+    def align(self, crop, *, max_side=None, enhanced=False, use_all_features=False):
+        matrix, count, _ = self._align(crop, max_side=max_side, enhanced=enhanced,
+                                       use_all_features=use_all_features)
+        return matrix, count
+
+    def _align(self, crop, *, max_side=None, enhanced=False, use_all_features=False):
         import cv2
 
+        quality = {}
         if min(crop.shape[:2]) < 32:
-            return None, 0
+            return None, 0, quality
         height, width = crop.shape[:2]
         if max_side is not None:
             factor = max_side / max(height, width)
@@ -135,9 +176,12 @@ class DialCalibration:
         scaling = np.diag([crop.shape[1] / width, crop.shape[0] / height, 1.0])
         target_keypoints = self.enhanced_keypoints if enhanced else self.keypoints
         target_descriptors = self.enhanced_descriptors if enhanced else self.descriptors
+        if use_all_features:
+            target_keypoints = self.all_enhanced_keypoints if enhanced else self.all_keypoints
+            target_descriptors = self.all_enhanced_descriptors if enhanced else self.all_descriptors
         keypoints, descriptors = self.sift.detectAndCompute(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), None)
         if descriptors is None or target_descriptors is None or len(target_descriptors) < 2:
-            return None, 0
+            return None, 0, quality
         matches = {}
         for pair in self.matcher.knnMatch(descriptors, target_descriptors, k=2):
             if len(pair) == 2 and pair[0].distance < 0.75 * pair[1].distance:
@@ -145,29 +189,39 @@ class DialCalibration:
                 if match.trainIdx not in matches or match.distance < matches[match.trainIdx].distance:
                     matches[match.trainIdx] = match
         if len(matches) < 8:
-            return None, 0
+            return None, 0, quality
         source = np.float32([keypoints[m.queryIdx].pt for m in matches.values()])
         target = np.float32([target_keypoints[m.trainIdx].pt for m in matches.values()])
         matrix, mask = cv2.findHomography(source, target, cv2.RANSAC, 3.0)
         if matrix is None or mask is None or not np.isfinite(matrix).all():
-            return None, 0
+            return None, 0, quality
         inliers = mask.ravel().astype(bool)
         count = int(inliers.sum())
+        quality['alignment_matches'] = len(matches)
+        quality['alignment_inlier_ratio'] = float(inliers.mean())
         if count < 8 or inliers.mean() < 0.45:
-            return None, count
+            return None, count, quality
         hull = cv2.convexHull(target[inliers])
         if cv2.contourArea(hull) < 0.03 * self.size[0] * self.size[1]:
-            return None, count
-        return matrix @ scaling, count
+            return None, count, quality
+        projected = cv2.perspectiveTransform(source[inliers, None], matrix)[:, 0]
+        error = float(np.sqrt(np.mean(np.sum((projected - target[inliers]) ** 2, axis=1))))
+        quality['alignment_reprojection_error'] = error
+        quality['alignment_error_relative'] = error / self.radius
+        return matrix @ scaling, count, quality
 
-    def read(self, crop, needle, scale, *, max_side=None, enhanced=False):
+    def read(self, crop, needle, scale, *, max_side=None, enhanced=False, use_all_features=False):
         import cv2
 
-        result = {'reading': None, 'unit': self.unit, 'calibration_template': self.name}
+        result = {'reading': None, 'unit': self.unit, 'calibration_template': self.name,
+                  'template_priority': self.priority}
         if not needle.any() or not scale.any():
             return {**result, 'reading_status': 'pointer_missing' if not needle.any() else 'scale_missing'}
-        matrix, matches = self.align(crop, max_side=max_side, enhanced=enhanced)
+        matrix, matches, quality = self._align(crop, max_side=max_side, enhanced=enhanced,
+                                               use_all_features=use_all_features)
+        result.update(quality)
         result['alignment_inliers'] = matches
+        result['alignment_features'] = 'static' if self.has_alignment_mask and not use_all_features else 'all'
         result['alignment_mode'] = ('contrast_' if enhanced else '') + (f'resize_{max_side}' if max_side else 'native')
         if matrix is None:
             return {**result, 'reading_status': 'alignment_failed'}
@@ -183,8 +237,11 @@ class DialCalibration:
         points = np.column_stack((x, y)).astype(np.float32).reshape(-1, 1, 2)
         aligned = cv2.perspectiveTransform(points, matrix).reshape(-1, 2)
         value, status = interpolate_needle(aligned, self.pivot, self.anchors, self.radius,
-                                          measured_zero_fraction=self.measured_zero_fraction)
-        return {**result, 'reading': value, 'reading_status': status}
+                                          measured_zero_fraction=self.measured_zero_fraction, round_result=False)
+        corrected = None if value is None else float(np.interp(
+            value, self.reading_calibration[:, 0], self.reading_calibration[:, 1]))
+        return {**result, 'raw_reading': None if value is None else round(value, 4),
+                'reading': None if corrected is None else round(corrected, 1), 'reading_status': status}
 
 
 def load_calibrations(path, segment_scale):
@@ -197,13 +254,23 @@ def read_dial(calibrations, crop, needle, scale, *, enhanced=False):
     def alignment_quality(result):
         agreement = result.get('scale_alignment', 0)
         inliers = result.get('alignment_inliers', 0)
-        return result['reading_status'] == 'ok', agreement >= 0.3, agreement * inliers, inliers
+        ratio = result.get('alignment_inlier_ratio', 1.0)
+        error = result.get('alignment_error_relative', 0.0)
+        priority_weight = max(0.2, 1.0 - 0.2 * result.get('template_priority', 0))
+        score = agreement * inliers * ratio * priority_weight / (1.0 + 100.0 * error)
+        return result['reading_status'] == 'ok', agreement >= 0.3, score, inliers
 
     candidates = []
-    for max_side in ((320,) if enhanced else (None, 320)):
-        current = [profile.read(crop, needle, scale, max_side=max_side, enhanced=enhanced)
-                   for profile in calibrations]
+    feature_modes = (False, True) if any(profile.has_alignment_mask for profile in calibrations) else (False,)
+    for use_all_features in feature_modes:
+        current = []
+        for max_side in ((320,) if enhanced else (None, 320)):
+            current.extend(profile.read(crop, needle, scale, max_side=max_side, enhanced=enhanced,
+                                        use_all_features=use_all_features) for profile in calibrations)
+            if not needle.any() or not scale.any():
+                return max(current, key=alignment_quality)
         candidates.extend(current)
-        if any(result['reading_status'] == 'ok' for result in current) or not needle.any() or not scale.any():
-            break
+        valid = [result for result in current if result['reading_status'] == 'ok']
+        if valid:
+            return max(valid, key=alignment_quality)
     return max(candidates, key=alignment_quality)

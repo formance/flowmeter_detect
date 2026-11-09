@@ -1,136 +1,791 @@
 {
-  "reference": "../../../data/scene01_seg_min190/080.png",
   "unit": "Nm³/h",
+  "reference": "templates/scene02_003.png",
+  "priority": 0,
   "pivot": [
-    300,
-    174
+    466,
+    263
   ],
   "anchors": [
     [
-      0,
-      83,
-      262
+      0.0,
+      182,
+      419
     ],
     [
-      5,
-      75,
-      233
+      5.0,
+      166,
+      381
     ],
     [
-      10,
-      71,
-      216
+      10.0,
+      160,
+      360
     ],
     [
-      20,
-      68,
-      177
+      20.0,
+      154,
+      309
     ],
     [
-      30,
-      73,
-      131
+      30.0,
+      155,
+      251
     ],
     [
-      40,
-      82,
-      92
+      40.0,
+      164,
+      201
     ],
     [
-      50,
-      96,
-      63
+      50.0,
+      179,
+      163
     ]
+  ],
+  "calibration_confirmed": true,
+  "source_dataset": "scene02",
+  "source_image": "scene02/003.jpg",
+  "source_bbox": [
+    852,
+    306,
+    1541,
+    972
   ],
   "fallbacks": [
     {
-      "reference": "../../../data/scene01_seg_min190/028.png",
+      "reference": "templates/scene03_037.png",
+      "priority": 0,
       "pivot": [
-        221,
-        116
+        254.05999755859375,
+        141.5
       ],
       "anchors": [
         [
-          0,
-          71,
-          189
+          0.0,
+          96,
+          222
         ],
         [
-          5,
-          66,
-          172
+          5.0,
+          89,
+          204
         ],
         [
-          10,
-          62,
-          160
+          10.0,
+          86,
+          192
         ],
         [
-          20,
-          60,
-          136
+          20.0,
+          83,
+          164
         ],
         [
-          30,
-          62,
+          30.0,
+          84,
+          132
+        ],
+        [
+          40.0,
+          91,
           103
         ],
         [
-          40,
-          68,
-          78
+          50.0,
+          100,
+          80
+        ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene03",
+      "source_image": "scene03/037.jpg",
+      "source_bbox": [
+        370,
+        233,
+        650,
+        502
+      ],
+      "known_reading": 0.0,
+      "alignment_mask": "templates/scene03_037_alignment.png",
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
         ],
         [
-          50,
-          77,
-          57
+          50.0,
+          50.0
         ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene03/037.jpg",
+          "raw_reading": 0.0,
+          "reference_reading": 0.0
+        }
       ]
     },
     {
-      "reference": "../../../data/scene01_seg_min190/058.png",
-      "measured_zero_fraction": 0.17985019,
+      "reference": "templates/scene03_032.png",
+      "priority": 0,
       "pivot": [
-        265,
-        141
+        226,
+        125
       ],
       "anchors": [
         [
-          0,
-          92,
-          239
+          0.0,
+          84,
+          204
         ],
         [
-          5,
-          83,
-          213
+          5.0,
+          75,
+          185
         ],
         [
-          10,
-          80,
-          198
+          10.0,
+          73,
+          174
         ],
         [
-          20,
+          20.0,
+          69,
+          153
+        ],
+        [
+          30.0,
+          68,
+          119
+        ],
+        [
+          40.0,
+          72,
+          95
+        ],
+        [
+          50.0,
           78,
-          170
-        ],
-        [
-          30,
-          81,
-          131
-        ],
-        [
-          40,
-          88,
-          100
-        ],
-        [
-          50,
-          99,
           75
         ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene03",
+      "source_image": "scene03/032.jpg",
+      "source_bbox": [
+        435,
+        286,
+        690,
+        529
+      ],
+      "known_reading": 5.0,
+      "alignment_mask": "templates/scene03_032_alignment.png",
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          4.881862,
+          5.0
+        ],
+        [
+          50.0,
+          50.0
+        ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene03/032.jpg",
+          "raw_reading": 4.881862313219131,
+          "reference_reading": 5.0
+        }
       ]
+    },
+    {
+      "reference": "templates/scene03_007.png",
+      "priority": 0,
+      "pivot": [
+        343.8800048828125,
+        188.8699951171875
+      ],
+      "anchors": [
+        [
+          0.0,
+          141.3300018310547,
+          317.0899963378906
+        ],
+        [
+          5.0,
+          129.2100067138672,
+          286.07000732421875
+        ],
+        [
+          10.0,
+          124.83000183105469,
+          268.0400085449219
+        ],
+        [
+          20.0,
+          120.93000030517578,
+          234.17999267578125
+        ],
+        [
+          30.0,
+          122.41999816894531,
+          186.6199951171875
+        ],
+        [
+          40.0,
+          129.1199951171875,
+          148.5
+        ],
+        [
+          50.0,
+          140.9499969482422,
+          117.4000015258789
+        ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene03",
+      "source_image": "scene03/007.jpg",
+      "source_bbox": [
+        448,
+        128,
+        822,
+        498
+      ],
+      "known_reading": 5.0,
+      "alignment_mask": "templates/scene03_007_alignment.png",
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.634117,
+          0.0
+        ],
+        [
+          5.885285,
+          5.0
+        ],
+        [
+          50.0,
+          50.0
+        ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene03/007.jpg",
+          "raw_reading": 5.88528544506699,
+          "reference_reading": 5.0
+        },
+        {
+          "image": "data/scene01/058.jpg",
+          "raw_reading": 0.6341171287256843,
+          "reference_reading": 0.0
+        }
+      ]
+    },
+    {
+      "reference": "templates/scene03_017.png",
+      "priority": 0,
+      "pivot": [
+        301.75,
+        171.5800018310547
+      ],
+      "anchors": [
+        [
+          0.0,
+          118,
+          280
+        ],
+        [
+          5.0,
+          109,
+          257
+        ],
+        [
+          10.0,
+          105,
+          241
+        ],
+        [
+          20.0,
+          99,
+          208
+        ],
+        [
+          30.0,
+          99,
+          169
+        ],
+        [
+          40.0,
+          106,
+          134
+        ],
+        [
+          50.0,
+          115,
+          106
+        ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene03",
+      "source_image": "scene03/017.jpg",
+      "source_bbox": [
+        574,
+        206,
+        898,
+        536
+      ],
+      "known_reading": 7.0,
+      "alignment_mask": "templates/scene03_017_alignment.png",
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.083079,
+          0.0
+        ],
+        [
+          7.007613,
+          7.0
+        ],
+        [
+          50.0,
+          50.0
+        ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene03/017.jpg",
+          "raw_reading": 7.007612503372578,
+          "reference_reading": 7.0
+        },
+        {
+          "image": "data/scene01/039.jpg",
+          "raw_reading": 0.083078886483888,
+          "reference_reading": 0.0
+        }
+      ]
+    },
+    {
+      "reference": "templates/scene01_081.png",
+      "priority": 0,
+      "pivot": [
+        300.1199951171875,
+        173.66000366210938
+      ],
+      "anchors": [
+        [
+          0.0,
+          82.91999816894531,
+          261.6000061035156
+        ],
+        [
+          5.0,
+          74.83999633789062,
+          232.67999267578125
+        ],
+        [
+          10.0,
+          70.79000091552734,
+          215.72999572753906
+        ],
+        [
+          20.0,
+          67.66999816894531,
+          176.86000061035156
+        ],
+        [
+          30.0,
+          72.5199966430664,
+          131.02000427246094
+        ],
+        [
+          40.0,
+          82,
+          92
+        ],
+        [
+          50.0,
+          95.27999877929688,
+          63.220001220703125
+        ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene01",
+      "source_image": "scene01_seg/081.png",
+      "source_bbox": null,
+      "alignment_mask": "templates/scene01_081_alignment.png",
+      "known_reading": 19.0,
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          18.961152,
+          19.0
+        ],
+        [
+          50.0,
+          50.0
+        ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene01/081.jpg",
+          "raw_reading": 18.961151698183567,
+          "reference_reading": 19.0
+        }
+      ]
+    },
+    {
+      "reference": "templates/scene02_005.png",
+      "priority": 0,
+      "pivot": [
+        468.94000244140625,
+        261.6099853515625
+      ],
+      "anchors": [
+        [
+          0.0,
+          194,
+          428
+        ],
+        [
+          5.0,
+          179,
+          388
+        ],
+        [
+          10.0,
+          173,
+          367
+        ],
+        [
+          20.0,
+          165,
+          314
+        ],
+        [
+          30.0,
+          166,
+          249
+        ],
+        [
+          40.0,
+          175,
+          194
+        ],
+        [
+          50.0,
+          191,
+          151
+        ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene02",
+      "source_image": "scene02/005.jpg",
+      "source_bbox": [
+        901,
+        391,
+        1656,
+        1157
+      ],
+      "alignment_mask": "templates/scene02_005_alignment.png",
+      "known_reading": 0.0,
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.391985,
+          0.0
+        ],
+        [
+          6.295891,
+          5.0
+        ],
+        [
+          50.0,
+          50.0
+        ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene02/005.jpg",
+          "raw_reading": 0.39198482296494913,
+          "reference_reading": 0.0
+        },
+        {
+          "image": "data/scene02/016.jpg",
+          "raw_reading": 6.295890950291561,
+          "reference_reading": 5.0
+        }
+      ]
+    },
+    {
+      "reference": "templates/scene02_007.png",
+      "priority": 1,
+      "pivot": [
+        401.70001220703125,
+        267.1400146484375
+      ],
+      "anchors": [
+        [
+          0.0,
+          114,
+          427
+        ],
+        [
+          5.0,
+          97,
+          388
+        ],
+        [
+          10.0,
+          91,
+          364
+        ],
+        [
+          20.0,
+          83,
+          311
+        ],
+        [
+          30.0,
+          83,
+          244
+        ],
+        [
+          40.0,
+          95,
+          191
+        ],
+        [
+          50.0,
+          114,
+          141
+        ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene02",
+      "source_image": "scene02/007.jpg",
+      "source_bbox": [
+        918,
+        189,
+        1644,
+        1031
+      ],
+      "alignment_mask": "templates/scene02_007_alignment.png",
+      "known_reading": 2.5,
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          2.409885,
+          2.5
+        ],
+        [
+          50.0,
+          50.0
+        ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene02/007.jpg",
+          "raw_reading": 2.4098848506302515,
+          "reference_reading": 2.5
+        }
+      ]
+    },
+    {
+      "reference": "templates/scene02_017.png",
+      "priority": 1,
+      "pivot": [
+        411,
+        271
+      ],
+      "anchors": [
+        [
+          0.0,
+          103,
+          409
+        ],
+        [
+          5.0,
+          90,
+          374
+        ],
+        [
+          10.0,
+          84,
+          349
+        ],
+        [
+          20.0,
+          79,
+          287
+        ],
+        [
+          30.0,
+          85,
+          222
+        ],
+        [
+          40.0,
+          98,
+          174
+        ],
+        [
+          50.0,
+          117,
+          131
+        ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene02",
+      "source_image": "scene02/017.jpg",
+      "source_bbox": [
+        794,
+        548,
+        1273,
+        1078
+      ],
+      "alignment_mask": "templates/scene02_017_alignment.png",
+      "known_reading": 5.0,
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          5.388857,
+          5.0
+        ],
+        [
+          50.0,
+          50.0
+        ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene02/017.jpg",
+          "raw_reading": 5.388856803915562,
+          "reference_reading": 5.0
+        }
+      ]
+    },
+    {
+      "reference": "templates/scene02_001.png",
+      "priority": 2,
+      "pivot": [
+        441.1099853515625,
+        270.0799865722656
+      ],
+      "anchors": [
+        [
+          0.0,
+          156,
+          459
+        ],
+        [
+          5.0,
+          144,
+          417
+        ],
+        [
+          10.0,
+          137,
+          392
+        ],
+        [
+          20.0,
+          131,
+          340
+        ],
+        [
+          30.0,
+          130,
+          277
+        ],
+        [
+          40.0,
+          139,
+          217
+        ],
+        [
+          50.0,
+          154,
+          170
+        ]
+      ],
+      "calibration_confirmed": true,
+      "source_dataset": "scene02",
+      "source_image": "scene02/001.jpg",
+      "source_bbox": [
+        1287,
+        334,
+        1901,
+        1037
+      ],
+      "alignment_mask": "templates/scene02_001_alignment.png",
+      "known_reading": 0.0,
+      "reading_calibration": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.304447,
+          0.0
+        ],
+        [
+          50.0,
+          50.0
+        ]
+      ],
+      "calibration_samples": [
+        {
+          "image": "data/scene02/001.jpg",
+          "raw_reading": 0.30444725914282617,
+          "reference_reading": 0.0
+        }
+      ]
+    }
+  ],
+  "alignment_mask": "templates/scene02_003_alignment.png",
+  "known_reading": 0.0,
+  "reading_calibration": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.571151,
+      0.0
+    ],
+    [
+      50.0,
+      50.0
+    ]
+  ],
+  "calibration_samples": [
+    {
+      "image": "data/scene02/003.jpg",
+      "raw_reading": 0.5711510238967537,
+      "reference_reading": 0.0
     }
   ]
 }
