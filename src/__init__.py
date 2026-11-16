@@ -1,1 +1,1 @@
-"""Flowmeter training and inference tools."""
+"""Pointer and scale tick segmentation training."""

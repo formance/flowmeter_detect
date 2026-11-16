@@ -1,9 +1,6 @@
-outputs/
-data/
-weights/
-/src/inference/flowmeter/templates/
+/outputs/
+/data/
+/weights/
 /run/
-/src/deploy/training/wheels/
-/src/deploy/training/wheels_python/*.tar.xz
-/.stage2_runtime/
 __pycache__/
+*.pyc

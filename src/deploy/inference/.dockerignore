@@ -1,9 +1,0 @@
-.git
-.venv
-__pycache__
-data
-weights
-runs
-outputs
-*.zip
-.venv-*
