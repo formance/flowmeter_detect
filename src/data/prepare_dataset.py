@@ -17,6 +17,7 @@ PROJECT = Path(__file__).resolve().parents[2]
 SCENES = ('scene01_part', 'scene02', 'scene03')
 SPLITS = ('train', 'val', 'test')
 CLASSES = {'background': 0, 'pointer': 1, 'scale_tick': 2}
+TICK_LINE_WIDTH = 1
 
 
 def write_json(path, data):
@@ -55,9 +56,12 @@ def annotation_mask(annotation, size):
                    or not 0 <= p[0] <= size[0]-1 or not 0 <= p[1] <= size[1]-1 for p in points):
                 raise ValueError('Invalid annotation coordinates')
             if kind == 'line':
-                if shape.get('line_width') != 1:
-                    raise ValueError('Tick line widths must already be fixed at 1')
-                draw.line([tuple(p) for p in points], fill=value, width=1)
+                if shape.get('line_width') != TICK_LINE_WIDTH:
+                    raise ValueError(f'Tick line widths must already be fixed at {TICK_LINE_WIDTH}')
+                draw.line([tuple(p) for p in points], fill=value, width=TICK_LINE_WIDTH)
+                radius = (TICK_LINE_WIDTH-1) / 2
+                for x, y in points:
+                    draw.ellipse((x-radius, y-radius, x+radius, y+radius), fill=value)
             else:
                 draw.polygon([tuple(p) for p in points], fill=value)
             present.add(label)
@@ -215,7 +219,7 @@ def build(args):
         for split in SPLITS:
             ids=[r['id'] for r in summaries if r['split']==split and (base==staging or r['scene']==base.name)]
             (base/'splits'/(split+'.txt')).write_text('\n'.join(ids)+'\n',encoding='utf-8')
-    report={'version':1,'classes':CLASSES,'line_width':1,'ratio':[7,2,1],'seed':args.seed,
+    report={'version':1,'classes':CLASSES,'line_width':TICK_LINE_WIDTH,'ratio':[7,2,1],'seed':args.seed,
             'policy':'相邻及近似图尽量跨集合分散，完全重复图同组；近似图允许跨集合，评测不代表跨场景泛化。',
             'source':str(source),'excluded_deleted':excluded,'counts':dict(Counter(r['split'] for r in summaries)),
             'scenes':scene_reports,'train_class_pixels':dict(train_pixels),'samples':summaries}

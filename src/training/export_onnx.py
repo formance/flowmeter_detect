@@ -25,7 +25,7 @@ def main():
     output.with_suffix('.json').write_text(json.dumps({'classes':checkpoint['classes'],'input_shape':[1,3,size,size],
         'output_shape':[1,3,size,size],'resize':'letterbox','normalization':checkpoint['normalization'],
         'postprocess':'argmax logits along class dimension; remove letterbox padding then resize labels with nearest interpolation',
-        'tick_line_width':1},indent=2)+'\n',encoding='utf-8')
+        'tick_line_width':checkpoint.get('tick_line_width',1)},indent=2)+'\n',encoding='utf-8')
     print(f'ONNX exported and checked: {output}')
 
 

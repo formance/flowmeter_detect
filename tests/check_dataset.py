@@ -13,6 +13,7 @@ def main():
     root=Path(__file__).resolve().parents[1]
     dataset=root/'data/pointer_scale_seg';source=root.parent/'segmentation_tool/dataset'
     manifest=json.loads((dataset/'manifest.json').read_text(encoding='utf-8'))
+    assert manifest['line_width']==1
     deleted=json.loads((source/'trash.json').read_text(encoding='utf-8'))['samples']
     splits={name:set((dataset/'splits'/(name+'.txt')).read_text().split()) for name in ('train','val','test')}
     assert not splits['train']&splits['val'] and not splits['train']&splits['test'] and not splits['val']&splits['test']

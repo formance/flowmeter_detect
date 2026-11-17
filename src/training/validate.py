@@ -1,4 +1,4 @@
-"""Evaluate a trained three-class model without mixing test data into training."""
+"""Report exact recall on annotated pointer/tick pixels, ignoring other pixels."""
 import argparse
 import json
 from pathlib import Path
@@ -21,11 +21,14 @@ def main():
     parser.add_argument('--workers',type=int,default=2)
     parser.add_argument('--output',type=Path)
     args=parser.parse_args();device=torch.device(args.device)
+    torch.set_num_threads(4)
     model,checkpoint=load_checkpoint(args.checkpoint,device)
     dataset=SegmentationDataset(args.dataset,args.split,checkpoint['imgsz'])
     metrics=evaluate(model,DataLoader(dataset,batch_size=args.batch,num_workers=args.workers),device)
-    report={'split':args.split,'images':len(dataset),'checkpoint':str(args.checkpoint),'epoch':checkpoint['epoch'],'metrics':metrics}
-    output=args.output or args.checkpoint.parent/(args.split+'_metrics.json')
+    report={'split':args.split,'images':len(dataset),'checkpoint':str(args.checkpoint),'epoch':checkpoint['epoch'],
+            'metric_definition':'exact foreground GT-pixel recall; class macro average','metrics':metrics}
+    output=args.output or args.checkpoint.parent/(args.checkpoint.stem+'_'+args.split+'_recall.json')
+    output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(report,indent=2))
 
